@@ -1,26 +1,30 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js App"/>
+  <h1>Информация о заказах</h1>
+  <OrderTable :orders="orders" />
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import OrderTable from "./components/OrderTable.vue";
+
+import data from "./assets/data.json";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
-    HelloWorld
-  }
-}
+    OrderTable,
+  },
+  data() {
+    return {
+      orders: data,
+    };
+  },
+};
 </script>
 
 <style>
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+  margin: 20px 20px 40px;
 }
 </style>
