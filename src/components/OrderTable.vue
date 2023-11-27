@@ -1,9 +1,7 @@
 <template>
-  <div style="display: flex; flex-direction: column; gap: 15px">
-    <div style="text-align: start; font-size: 16px">
-      <label for="dateFilter" style="margin-right: 10px"
-        >Выберите фильтр:</label
-      >
+  <div class="order-table-container">
+    <div class="filter-container">
+      <label for="dateFilter" class="filter-label-text">Выберите фильтр:</label>
       <select
         class="filter-select"
         id="dateFilter"
@@ -18,8 +16,8 @@
       </select>
     </div>
 
-    <table>
-      <thead>
+    <table class="order-table">
+      <thead class="order-table-heading">
         <tr>
           <th @click="sortTable('o_id')">Заказ</th>
           <th @click="sortTable('client_name')">Имя клиента</th>
@@ -43,7 +41,7 @@
           :class="index % 2 === 0 ? 'white-row' : 'violet-row'"
         >
           <td>{{ order.o_id }}</td>
-          <td style="color: #540099; text-align: start">
+          <td class="order-table-client_name">
             <b>{{ order.client_name }}</b>
           </td>
           <td>
@@ -53,40 +51,26 @@
             </div>
           </td>
           <td>{{ order.tariff[0] }}</td>
-          <td style="text-align: start">{{ order.address }}</td>
+          <td class="order-table-custom">{{ order.address }}</td>
           <td>{{ order.phone }}</td>
           <td>
-            <span
-              >{{ formatDate(order.dates[0].start_date) }} -
-              {{ formatDate(order.dates[0].end_date) }}</span
-            >
+            <span>{{ formatDateRange(order.dates[0]) }}</span>
           </td>
           <td>{{ order.discount }}%</td>
           <td>{{ order.order_sum }} р.</td>
           <td>{{ order.order_payed }} р.</td>
           <td>{{ order.pay_status }}</td>
           <td>
-            <div v-if="order.courier_comment" class="comment">
-              <img
-                src="@/assets/delivery-icons.png"
-                style="width: 16px; height: 16px; margin-right: 6px"
-              />
-              <span style="text-align: start">{{ order.courier_comment }}</span>
-            </div>
-            <div v-else>
-              <span>{{ order.courier_comment }}</span>
-            </div>
+            <comment-section
+              :comment="order.courier_comment"
+              :icon="require('@/assets/delivery-icons.png')"
+            ></comment-section>
           </td>
           <td>
-            <div v-if="order.inner_comment" class="comment">
-              <img
-                src="@/assets/comment-icons.png"
-                style="width: 16px; height: 16px; margin-right: 6px"
-              /><span style="text-align: start">{{ order.inner_comment }}</span>
-            </div>
-            <div v-else>
-              <span>{{ order.inner_comment }}</span>
-            </div>
+            <comment-section
+              :comment="order.inner_comment"
+              :icon="require('@/assets/comment-icons.png')"
+            ></comment-section>
           </td>
         </tr>
       </tbody>
@@ -95,8 +79,13 @@
 </template>
 
 <script>
+import CommentSection from "./CommentSection.vue";
+
 export default {
   name: "OrderTable",
+  components: {
+    CommentSection,
+  },
   data() {
     return {
       sortBy: "client_name",
@@ -109,73 +98,78 @@ export default {
   },
   computed: {
     filteredOrders() {
-      if (this.selectedDateOption === "today") {
-        const today = new Date().toLocaleDateString("ru-RU");
-        return this.orders.filter((order) =>
-          order.dates.some(
-            (date) =>
-              new Date(date.end_date).toLocaleDateString("ru-RU") === today
-          )
-        );
-      } else if (this.selectedDateOption === "tomorrow") {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toLocaleDateString("ru-RU");
-        return this.orders.filter((order) =>
-          order.dates.some(
-            (date) =>
-              new Date(date.end_date).toLocaleDateString("ru-RU") ===
-              tomorrowStr
-          )
-        );
-      } else if (this.selectedDateOption === "soon") {
-        const todayTimestamp = new Date().setHours(0, 0, 0, 0);
-        return this.orders.filter((order) =>
-          order.dates.every(
-            (date) =>
-              new Date(date.start_date).setHours(0, 0, 0, 0) > todayTimestamp
-          )
-        );
-      } else if (this.selectedDateOption === "finished") {
-        const todayTimestamp = new Date().setHours(0, 0, 0, 0);
-        return this.orders.filter((order) =>
-          order.dates.every(
-            (date) =>
-              new Date(date.end_date).setHours(0, 0, 0, 0) < todayTimestamp
-          )
-        );
-      } else {
-        return this.orders.slice();
+      switch (this.selectedDateOption) {
+        case "today":
+          return this.orders.filter((order) => this.isToday(order.dates));
+        case "tomorrow":
+          return this.orders.filter((order) => this.isTomorrow(order.dates));
+        case "soon":
+          return this.orders.filter((order) => this.isSoon(order.dates));
+        case "finished":
+          return this.orders.filter((order) => this.isFinished(order.dates));
+        default:
+          return this.orders.slice();
       }
     },
     sortedOrders() {
-      const compareFunction = (a, b) => {
-        const fieldA =
-          this.sortBy === "o_id"
-            ? Number(a[this.sortBy])
-            : String(a[this.sortBy]).toLowerCase();
-        const fieldB =
-          this.sortBy === "o_id"
-            ? Number(b[this.sortBy])
-            : String(b[this.sortBy]).toLowerCase();
-
-        let comparison = 0;
-        if (fieldA > fieldB) {
-          comparison = 1;
-        } else if (fieldA < fieldB) {
-          comparison = -1;
-        }
-
-        return this.sortDesc ? comparison * -1 : comparison;
-      };
-
-      return this.filteredOrders.slice().sort(compareFunction);
+      return this.filteredOrders.slice().sort(this.compareFunction);
+    },
+    todayTimestamp() {
+      return new Date().setHours(0, 0, 0, 0);
     },
   },
   methods: {
-    formatDate(dateString) {
+    formatDateRange(date) {
       const options = { day: "2-digit", month: "short" };
-      return new Date(dateString).toLocaleDateString("ru-RU", options);
+      return `${new Date(date.start_date).toLocaleDateString(
+        "ru-RU",
+        options
+      )} - ${new Date(date.end_date).toLocaleDateString("ru-RU", options)}`;
+    },
+    isToday(dates) {
+      const today = new Date().toLocaleDateString("ru-RU");
+      return dates.some(
+        (date) => new Date(date.end_date).toLocaleDateString("ru-RU") === today
+      );
+    },
+    isTomorrow(dates) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toLocaleDateString("ru-RU");
+      return dates.some(
+        (date) =>
+          new Date(date.end_date).toLocaleDateString("ru-RU") === tomorrowStr
+      );
+    },
+    isSoon(dates) {
+      return dates.every(
+        (date) =>
+          new Date(date.start_date).setHours(0, 0, 0, 0) > this.todayTimestamp
+      );
+    },
+    isFinished(dates) {
+      return dates.every(
+        (date) =>
+          new Date(date.end_date).setHours(0, 0, 0, 0) < this.todayTimestamp
+      );
+    },
+    compareFunction(a, b) {
+      const fieldA = this.getFieldValue(a);
+      const fieldB = this.getFieldValue(b);
+
+      let comparison = 0;
+      if (fieldA > fieldB) {
+        comparison = 1;
+      } else if (fieldA < fieldB) {
+        comparison = -1;
+      }
+
+      return this.sortDesc ? comparison * -1 : comparison;
+    },
+    getFieldValue(item) {
+      return this.sortBy === "o_id"
+        ? Number(item[this.sortBy])
+        : String(item[this.sortBy]).toLowerCase();
     },
     sortTable(column) {
       if (column === this.sortBy) {
@@ -190,7 +184,7 @@ export default {
 </script>
 
 <style scoped>
-table {
+.order-table {
   font-size: 12px;
   border-collapse: collapse;
   width: 100%;
@@ -206,7 +200,7 @@ th {
   cursor: pointer;
 }
 
-thead {
+.order-table-heading {
   background-color: #e0b0ff;
 }
 
@@ -218,11 +212,19 @@ thead {
   background-color: #f5e6ff;
 }
 
-.comment {
+.order-table-container {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 5px;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.filter-container {
+  text-align: start;
+  font-size: 16px;
+}
+
+.filter-label-text {
+  margin-right: 10px;
 }
 
 .filter-select {
@@ -236,5 +238,14 @@ thead {
 .filter-select:focus {
   border-color: #e0b0ff;
   outline: none;
+}
+
+.order-table-client_name {
+  color: #540099;
+  text-align: start;
+}
+
+.order-table-custom {
+  text-align: start;
 }
 </style>

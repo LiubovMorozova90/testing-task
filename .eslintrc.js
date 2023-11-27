@@ -6,12 +6,15 @@ module.exports = {
   extends: [
     "plugin:vue/vue3-essential",
     "eslint:recommended",
-    "@vue/prettier",
+    "prettier",
     "plugin:prettier/recommended",
   ],
   parserOptions: {
     parser: "babel-eslint",
+    ecmaVersion: 2021,
+    sourceType: "module",
   },
+
   overrides: [
     {
       files: ["**/*.vue"],
